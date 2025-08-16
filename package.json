@@ -1,0 +1,31 @@
+{
+  "name": "vegasdrones-chatbot-quote",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "ingest": "ts-node --transpile-only scripts/ingest-pdf.ts",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@langchain/community": "^0.0.38",
+    "@langchain/core": "^0.1.52",
+    "@langchain/openai": "^0.0.28",
+    "@supabase/supabase-js": "^2.44.2",
+    "langchain": "^0.1.36",
+    "next": "14.2.3",
+    "openai": "^4.47.1",
+    "pdf-parse": "^1.1.1",
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "ts-node": "^10.9.2",
+    "typescript": "^5"
+  }
+}
