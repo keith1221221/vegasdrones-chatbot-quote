@@ -11,6 +11,9 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
+    "moduleResolution": "bundler",
+"verbatimModuleSyntax": true,
+
     "incremental": true,
     "plugins": [
       {
