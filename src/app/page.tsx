@@ -1,181 +1,80 @@
-"use client";
+'use client';
+import "./chatbot.css";
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
-import { useState, useEffect } from "react";
+export default function ChatPage() {
+  const [messages, setMessages] = useState<{ role: 'user'|'assistant'; content: string }[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
 
-export default function Chatbot() {
-  const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
-  const [isResponding, setIsResponding] = useState(false);
+  // Auto-ask if ?q= is provided
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q && messages.length === 0) {
+      setInput(q);
+      handleSend(q); // fire immediately
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Preprogrammed questions
-  const suggestedQuestions = [
-    "How much for 50 drones?",
-    "What is the travel fee for Los Angeles?",
-    "Can you do a custom logo show?",
-    "How long does a drone show last?",
-  ];
-
-  // Handle sending a message
-  const sendMessage = async (msg: string) => {
-    if (!msg.trim()) return;
-
-    setIsResponding(true);
-    setMessages((prev) => [...prev, { role: "user", content: msg }]);
-
-    // Notify parent window (for video playback)
-    window.parent.postMessage("responding", "*");
+  async function handleSend(text?: string) {
+    const msg = (text ?? input).trim();
+    if (!msg) return;
+    setLoading(true);
+    setMessages(prev => [...prev, { role: 'user', content: msg }]);
+    setInput('');
 
     try {
-      const response = await fetch("/api/route", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: msg }),
       });
-      const data = await response.json();
-      if (data.reply) {
-        setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
-      } else {
-        setMessages((prev) => [...prev, { role: "assistant", content: "Sorry, something went wrong." }]);
-      }
-    } catch (error) {
-      console.error("Error sending message:", error);
-      setMessages((prev) => [...prev, { role: "assistant", content: "Error: Failed to get response." }]);
+      const data = await res.json();
+      setMessages(prev => [...prev, { role: 'assistant', content: data.reply ?? 'Sorry, no reply.' }]);
+    } catch (e) {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Failed to get response.' }]);
+    } finally {
+      setLoading(false);
     }
+  }
 
-    // Notify parent window after response
-    setTimeout(() => {
-      setIsResponding(false);
-      window.parent.postMessage("idle", "*");
-    }, 2000);
-  };
-
-  // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    sendMessage(message);
-    setMessage("");
-  };
-
-  // Handle clicking a suggested question
-  const handleSuggestedQuestion = (question: string) => {
-    sendMessage(question);
-  };
-
+  // Simple UI skeleton — keep your existing components if you have them
   return (
-    <div style={styles.container}>
-      <h1 style={styles.header}>Vegas Drones Assistant</h1>
-      <div style={styles.suggestedQuestions}>
-        {suggestedQuestions.map((question, index) => (
-          <button
-            key={index}
-            style={styles.suggestedButton}
-            onClick={() => handleSuggestedQuestion(question)}
-            disabled={isResponding}
-          >
-            {question}
-          </button>
+    <div className="chat-shell">
+      {/* Starter prompt chips */}
+      <div className="starter-chips">
+        {[
+          'Show me the difference between 100, 200, and 300 drones',
+          'How much does a 150-drone show cost?',
+          'Show me an example of a 150-drone show',
+          'What’s the largest show Vegas Drones has done?',
+          'Is my date available?',
+          'What safety radius/space is required?',
+          'What’s your refund / weather cancellation policy?',
+          'How far do you travel from Las Vegas?'
+        ].map((p) => (
+          <button key={p} className="chip" onClick={() => handleSend(p)}>{p}</button>
         ))}
       </div>
-      <div style={styles.messageContainer}>
-        {messages.map((msg, index) => (
-          <div
-            key={index}
-            style={msg.role === "user" ? styles.userMessage : styles.assistantMessage}
-          >
-            {msg.content}
-          </div>
+
+      <div className="chat-window">
+        {messages.map((m, i) => (
+          <div key={i} className={`msg ${m.role}`}>{m.content}</div>
         ))}
+        {loading && <div className="msg assistant">Loading…</div>}
       </div>
-      <form onSubmit={handleSubmit} style={styles.form}>
+
+      <form className="chat-input" onSubmit={(e) => { e.preventDefault(); handleSend(); }}>
         <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Ask about drone shows..."
-          style={styles.input}
-          disabled={isResponding}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ask about pricing, availability, safety, etc."
         />
-        <button type="submit" style={styles.submitButton} disabled={isResponding}>
-          Send
-        </button>
+        <button type="submit" disabled={loading}>Send</button>
       </form>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    background: "#ffffff",
-    color: "#000000",
-    padding: "20px",
-    height: "100%",
-    display: "flex",
-    flexDirection: "column" as const,
-    fontFamily: "'Poppins', sans-serif",
-  },
-  header: {
-    fontFamily: "'Orbitron', sans-serif",
-    fontSize: "1.5rem",
-    color: "#ff1e1e",
-    textAlign: "center" as const,
-    marginBottom: "10px",
-  },
-  suggestedQuestions: {
-    display: "flex",
-    flexWrap: "wrap" as const,
-    gap: "10px",
-    marginBottom: "15px",
-    justifyContent: "center" as const,
-  },
-  suggestedButton: {
-    background: "#ff4d4d",
-    color: "#ffffff",
-    border: "none",
-    borderRadius: "20px",
-    padding: "8px 16px",
-    cursor: "pointer",
-    fontSize: "0.9rem",
-    transition: "background 0.3s ease",
-  },
-  messageContainer: {
-    flex: 1,
-    overflowY: "auto" as const,
-    marginBottom: "10px",
-  },
-  userMessage: {
-    background: "#f0f0f0",
-    color: "#000000",
-    padding: "10px",
-    borderRadius: "10px",
-    margin: "5px 10px",
-    textAlign: "right" as const,
-  },
-  assistantMessage: {
-    background: "#ff4d4d",
-    color: "#ffffff",
-    padding: "10px",
-    borderRadius: "10px",
-    margin: "5px 10px",
-    textAlign: "left" as const,
-  },
-  form: {
-    display: "flex",
-    gap: "10px",
-  },
-  input: {
-    flex: 1,
-    padding: "10px",
-    border: "1px solid #ccc",
-    borderRadius: "5px",
-    fontSize: "1rem",
-  },
-  submitButton: {
-    background: "#ff1e1e",
-    color: "#ffffff",
-    border: "none",
-    borderRadius: "5px",
-    padding: "10px 20px",
-    cursor: "pointer",
-    fontSize: "1rem",
-  },
-};
