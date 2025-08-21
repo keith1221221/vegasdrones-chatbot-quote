@@ -1,80 +1,105 @@
-'use client';
-import "./chatbot.css";
-import { useEffect, useState } from 'react';
+"use client";
+
+import { useState, Suspense } from "react";
 import { useSearchParams } from 'next/navigation';
+import './chatbot.css'; // or '../../chatbot.css' if in root
 
-export default function ChatPage() {
-  const [messages, setMessages] = useState<{ role: 'user'|'assistant'; content: string }[]>([]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
+function ChatbotContent() {
   const searchParams = useSearchParams();
+  const initialMessage = searchParams.get('query') || '';
+  const [message, setMessage] = useState(initialMessage);
+  const [response, setResponse] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  // Auto-ask if ?q= is provided
-  useEffect(() => {
-    const q = searchParams.get('q');
-    if (q && messages.length === 0) {
-      setInput(q);
-      handleSend(q); // fire immediately
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const suggestedQuestions = [
+    "How much for 50 drones?",
+    "What is the travel fee for 100 miles?",
+    "How do I book a drone show?",
+    "Are your drones FAA-certified?",
+  ];
 
-  async function handleSend(text?: string) {
-    const msg = (text ?? input).trim();
-    if (!msg) return;
-    setLoading(true);
-    setMessages(prev => [...prev, { role: 'user', content: msg }]);
-    setInput('');
+  const handleSubmit = async (e: React.FormEvent | string) => {
+    e.preventDefault?.();
+    const inputMessage = typeof e === "string" ? e : message;
+    console.log("Sending message:", inputMessage);
+    setIsLoading(true);
+    setError("");
 
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg }),
+      const res = await fetch("/api/chat/route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: inputMessage }),
       });
+
+      console.log("Fetch response status:", res.status);
       const data = await res.json();
-      setMessages(prev => [...prev, { role: 'assistant', content: data.reply ?? 'Sorry, no reply.' }]);
-    } catch (e) {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Failed to get response.' }]);
+      console.log("Fetch response data:", data);
+
+      if (res.ok) {
+        setResponse(data.reply);
+        if (typeof window !== "undefined") {
+          window.parent.postMessage("responding", "*");
+          setTimeout(() => window.parent.postMessage("idle", "*"), 2000);
+        }
+      } else {
+        setError(`Error: ${data.error || "Unknown error"}`);
+      }
+    } catch (error) {
+      console.error("Fetch error:", error);
+      setError("Failed to fetch response. Please try again.");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  }
+  };
 
-  // Simple UI skeleton — keep your existing components if you have them
   return (
-    <div className="chat-shell">
-      {/* Starter prompt chips */}
-      <div className="starter-chips">
-        {[
-          'Show me the difference between 100, 200, and 300 drones',
-          'How much does a 150-drone show cost?',
-          'Show me an example of a 150-drone show',
-          'What’s the largest show Vegas Drones has done?',
-          'Is my date available?',
-          'What safety radius/space is required?',
-          'What’s your refund / weather cancellation policy?',
-          'How far do you travel from Las Vegas?'
-        ].map((p) => (
-          <button key={p} className="chip" onClick={() => handleSend(p)}>{p}</button>
+    <div className="chatbot-container">
+      <h1>Vegas Drones Chatbot</h1>
+      <p>Ask about our drone light shows!</p>
+      <div className="suggested-questions">
+        {suggestedQuestions.map((question, index) => (
+          <button
+            key={index}
+            onClick={() => handleSubmit(question)}
+            disabled={isLoading}
+            className="suggested-button"
+          >
+            {question}
+          </button>
         ))}
       </div>
-
-      <div className="chat-window">
-        {messages.map((m, i) => (
-          <div key={i} className={`msg ${m.role}`}>{m.content}</div>
-        ))}
-        {loading && <div className="msg assistant">Loading…</div>}
-      </div>
-
-      <form className="chat-input" onSubmit={(e) => { e.preventDefault(); handleSend(); }}>
+      <form onSubmit={handleSubmit}>
         <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about pricing, availability, safety, etc."
+          type="text"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Type your question..."
+          disabled={isLoading}
         />
-        <button type="submit" disabled={loading}>Send</button>
+        <button type="submit" disabled={isLoading}>
+          {isLoading ? "Sending..." : "Send"}
+        </button>
       </form>
+      {response && (
+        <div className="response">
+          <p>{response}</p>
+        </div>
+      )}
+      {error && (
+        <div className="error">
+          <p>{error}</p>
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ChatbotContent />
+    </Suspense>
   );
 }
