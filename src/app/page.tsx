@@ -19,8 +19,10 @@ function ChatbotContent() {
     "Are your drones FAA-certified?",
   ];
 
-  const handleSubmit = async (e: React.FormEvent | string) => {
-    e.preventDefault?.();
+  const handleSubmit = async (e: React.FormEvent<Element> | string) => {
+    if (typeof e !== 'string') {
+      e.preventDefault();
+    }
     const inputMessage = typeof e === "string" ? e : message;
     console.log("Sending message:", inputMessage);
     setIsLoading(true);
