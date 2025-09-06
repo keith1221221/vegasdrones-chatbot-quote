@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react";
 import { useSearchParams } from 'next/navigation';
-import './chatbot.css'; // or '../../chatbot.css' if in root
+import '../chatbot.css'; // or '../../chatbot.css' if in root
 
 function ChatbotContent() {
   const searchParams = useSearchParams();
