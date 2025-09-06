@@ -8,3 +8,5 @@ build
 npm-debug.log
 yarn-error.log
 .vercel
+# macOS system files
+.DS_Store
