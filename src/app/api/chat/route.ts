@@ -1,44 +1,66 @@
-import { NextResponse } from 'next/server';
-import { OpenAIEmbeddings } from '@langchain/openai';
-import { ChatOpenAI } from '@langchain/openai';
-import { createClient } from '@supabase/supabase-js';
-import { PromptTemplate } from '@langchain/core/prompts';
+// src/app/api/chat/route.ts
+import { NextResponse } from "next/server";
+
+export const runtime = "edge"; // optional; remove if you prefer Node runtime
+
+export async function GET() {
+  return NextResponse.json({ ok: true });
+}
+
+type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
 export async function POST(req: Request) {
-  const { query } = await req.json();
+  try {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "Missing OPENAI_API_KEY" },
+        { status: 500 }
+      );
+    }
 
-  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
-  const embeddings = new OpenAIEmbeddings({ openAIApiKey: process.env.OPENAI_API_KEY! });
+    const body = (await req.json()) as { messages?: ChatMessage[]; model?: string };
+    const messages = body?.messages ?? [];
+    const model = body?.model ?? "gpt-4o-mini"; // pick your preferred model
 
-  const embedding = await embeddings.embedQuery(query);
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return NextResponse.json(
+        { error: "POST body must include { messages: ChatMessage[] }" },
+        { status: 400 }
+      );
+    }
 
-  const { data: documents } = await supabase.rpc('match_documents', {
-    query_embedding: embedding,
-    match_threshold: 0.78,
-    match_count: 4,
-  });
+    // Call OpenAI via fetch (works on Edge or Node runtimes)
+    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature: 0.2
+      })
+    });
 
-  const context = documents.map((doc: any) => doc.content).join('\n\n');
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => "");
+      return NextResponse.json(
+        { error: `OpenAI error (${resp.status})`, details: errText },
+        { status: 500 }
+      );
+    }
 
-  const llm = new ChatOpenAI({
-    openAIApiKey: process.env.OPENAI_API_KEY!,
-    modelName: 'gpt-4o-mini',
-  });
+    const data = await resp.json();
+    const content =
+      data?.choices?.[0]?.message?.content ?? "(no content returned)";
 
-  const template = `You are a very enthusiastic Vegas Drones representative who loves to help people! Given the following sections from the operations manual, answer the question using only that information, especially regarding pricing and safety. If you are unsure and the answer is not explicitly written in the context, say "Sorry, I don't know how to help with that."
-
-  Context sections:
-  {context}
-
-  Question:
-  {question}
-
-  Answer as a Vegas Drones AI Assistant:`;
-
-  const prompt = PromptTemplate.fromTemplate(template);
-  const chain = prompt.pipe(llm);
-
-  const response = await chain.invoke({ question: query, context });
-
-  return NextResponse.json({ answer: response.content });
+    return NextResponse.json({ reply: content });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: "Unhandled error", details: String(err?.message ?? err) },
+      { status: 500 }
+    );
+  }
 }
