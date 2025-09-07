@@ -1,3 +1,11 @@
+// src/app/layout.tsx
+
+
+export const metadata = {
+  title: "Vegas Drones Chatbot",
+  description: "Quote assistant",
+};
+
 export default function RootLayout({
   children,
 }: {

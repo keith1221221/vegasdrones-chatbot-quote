@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { useSearchParams } from 'next/navigation';
-import '../chatbot.css'; // or '../../chatbot.css' if in root
+import { useSearchParams } from "next/navigation";
+import "./chatbot.css"; // make sure src/app/chatbot.css exists
 
 function ChatbotContent() {
   const searchParams = useSearchParams();
-  const initialMessage = searchParams.get('query') || '';
+  const initialMessage = searchParams.get("query") || "";
   const [message, setMessage] = useState(initialMessage);
   const [response, setResponse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -19,37 +19,39 @@ function ChatbotContent() {
     "Are your drones FAA-certified?",
   ];
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement> | string) => {
-    if (typeof e !== 'string') {
-      e.preventDefault();
-    }
+  const handleSubmit = async (
+    e: React.FormEvent<HTMLFormElement> | string
+  ) => {
+    if (typeof e !== "string") e.preventDefault();
     const inputMessage = typeof e === "string" ? e : message;
-    console.log("Sending message:", inputMessage);
+
     setIsLoading(true);
     setError("");
 
     try {
-      const res = await fetch("/api/chat/route", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: inputMessage }),
+        body: JSON.stringify({
+          messages: [{ role: "user", content: inputMessage }],
+        }),
       });
 
-      console.log("Fetch response status:", res.status);
       const data = await res.json();
-      console.log("Fetch response data:", data);
 
       if (res.ok) {
-        setResponse(data.reply);
+        setResponse(data.reply ?? "");
         if (typeof window !== "undefined") {
           window.parent.postMessage("responding", "*");
-          setTimeout(() => window.parent.postMessage("idle", "*"), 2000);
+          setTimeout(
+            () => window.parent.postMessage("idle", "*"),
+            2000
+          );
         }
       } else {
         setError(`Error: ${data.error || "Unknown error"}`);
       }
-    } catch (error) {
-      console.error("Fetch error:", error);
+    } catch (err) {
       setError("Failed to fetch response. Please try again.");
     } finally {
       setIsLoading(false);
@@ -60,18 +62,20 @@ function ChatbotContent() {
     <div className="chatbot-container">
       <h1>Vegas Drones Chatbot</h1>
       <p>Ask about our drone light shows!</p>
+
       <div className="suggested-questions">
-        {suggestedQuestions.map((question, index) => (
+        {suggestedQuestions.map((q, i) => (
           <button
-            key={index}
-            onClick={() => handleSubmit(question)}
+            key={i}
+            onClick={() => handleSubmit(q)}
             disabled={isLoading}
             className="suggested-button"
           >
-            {question}
+            {q}
           </button>
         ))}
       </div>
+
       <form onSubmit={handleSubmit}>
         <input
           type="text"
@@ -84,6 +88,7 @@ function ChatbotContent() {
           {isLoading ? "Sending..." : "Send"}
         </button>
       </form>
+
       {response && (
         <div className="response">
           <p>{response}</p>
