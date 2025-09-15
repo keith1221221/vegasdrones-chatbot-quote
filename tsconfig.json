@@ -23,7 +23,8 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     ".next/types/**/*.ts",
-    "scripts/**/*.ts"
+    "scripts/**/*.ts",
+    "src/supabase..js"  // Typo or incorrect path
   ],
   "exclude": ["node_modules"]
 }
