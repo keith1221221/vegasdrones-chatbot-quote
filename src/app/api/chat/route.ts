@@ -1,7 +1,7 @@
 // src/app/api/chat/route.ts
 import { NextResponse } from "next/server";
 
-export const runtime = "edge"; // optional; remove if you prefer Node runtime
+export const runtime = "nodejs";
 
 export async function GET() {
   return NextResponse.json({ ok: true });
